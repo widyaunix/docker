@@ -1,0 +1,91 @@
+###preparation
+#buat disk khusus untuk data docker
+mkdir /data/docker-root
+
+###install docker
+#ref https://docs.mailcow.email/getstarted/install/
+
+apt update
+apt install -y git openssl curl gawk coreutils grep jq
+curl -sSL https://get.docker.com/ | CHANNEL=stable sh
+
+###api tls
+#ref https://docs.docker.com/engine/security/protect-access/
+#Replace all instances of $HOST in the following example with the DNS name of your Docker daemon's host.
+#export HOST=namahostdocker.domain.tld
+mkdir /etc/docker/certs && cd /etc/docker/certs
+openssl genrsa -aes256 -out ca-key.pem 4096
+#Enter PEM pass phrase:
+openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -out ca.pem
+#Enter pass phrase for ca-key.pem:
+openssl genrsa -out server-key.pem 4096
+openssl req -subj "/CN=$HOST" -sha256 -new -key server-key.pem -out server.csr
+echo subjectAltName = DNS:$HOST,IP:172.17.0.1,IP:172.17.0.2,172.17.0.3,IP:127.0.0.1 >> extfile.cnf
+echo extendedKeyUsage = serverAuth >> extfile.cnf
+openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem -CAkey ca-key.pem \
+  -CAcreateserial -out server-cert.pem -extfile extfile.cnf
+#Enter pass phrase for ca-key.pem:
+openssl genrsa -out key.pem 4096
+openssl req -subj '/CN=client' -new -key key.pem -out client.csr
+echo extendedKeyUsage = clientAuth > extfile-client.cnf
+openssl x509 -req -days 365 -sha256 -in client.csr -CA ca.pem -CAkey ca-key.pem \
+  -CAcreateserial -out cert.pem -extfile extfile-client.cnf
+#Enter pass phrase for ca-key.pem:
+chmod -v 0400 ca-key.pem key.pem server-key.pem
+chmod -v 0444 ca.pem server-cert.pem cert.pem
+
+###secure
+#ref: ai
+systemctl edit docker
+#isi dengan
+## Editing /etc/systemd/system/docker.service.d/override.conf
+### Anything between here and the comment below will become the new contents of the file
+
+[Service]
+ExecStart=
+ExecStart=/usr/bin/dockerd -H unix:///var/run/docker.sock -H tcp://0.0.0.0:2376 --exec-opt native.cgroupdriver=systemd --log-level=info
+
+### Lines below this comment will be discarded
+### ...
+
+cat << 'EOF' > /etc/docker/daemon.json
+{
+  "tls": true,
+  "tlsverify": true,
+  "tlscacert": "/etc/docker/certs/ca.pem",
+  "tlscert": "/etc/docker/certs/server-cert.pem",
+  "tlskey": "/etc/docker/certs/server-key.pem",
+  "data-root": "/data/docker-root",
+  "icc": false,
+  "userns-remap": "default",
+  "no-new-privileges": true,
+  "live-restore": true,
+  "storage-driver": "overlay2",
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  },
+  "default-ulimits": {
+    "nofile": {
+      "Name": "nofile",
+      "Hard": 65535,
+      "Soft": 1024
+    }
+  }
+}
+EOF
+
+systemctl daemon-reexec
+systemctl daemon-reload
+systemctl restart docker
+
+###portainer
+docker run -d   -p 9443:9443   --name portainer   --restart=always   -v portainer_data:/data   portainer/portainer-ce:latest
+#akses portainer di url https://192.168.215.101:9443
+#buat user admin dan login
+#tambah environment dengan langkah dan parameter berikut
+#pilih standalone, api isi dengan:
+#name: docker-root
+#docker api url: 172.17.0.1:2376
+#pilih tls, lalu upload file, ca.pem, cert.pem, key.pem yg telah dibuat sebelumnya (copy dulu ke laptop filenya), lalu connect
