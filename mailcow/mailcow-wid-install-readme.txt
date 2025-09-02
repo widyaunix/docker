@@ -1,0 +1,25 @@
+#ref: https://docs.mailcow.email/getstarted/install/#selinux-configuration-optional
+
+su
+umask 0022
+cd /data
+git clone https://github.com/mailcow/mailcow-dockerized
+cd mailcow-dockerized
+
+./generate_config.sh
+#ip: 172.22.1.0/24
+
+#edit dulu mailcow.conf
+#vi mailcow.conf
+
+docker compose pull
+docker compose up -d
+
+#Done!
+#You can now access https://${MAILCOW_HOSTNAME}/admin using the default credentials admin and the password moohoo.
+
+###note
+#mailcow forgot admin password
+#ref: https://docs.mailcow.email/troubleshooting/debug-reset_pw/
+cd mailcow_path
+./helper-scripts/mailcow-reset-admin.sh
