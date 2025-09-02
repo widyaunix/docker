@@ -7,6 +7,7 @@ git clone https://github.com/mailcow/mailcow-dockerized
 cd mailcow-dockerized
 
 ./generate_config.sh
+#ip: 172.22.1.0/24
 
 #edit dulu mailcow.conf
 #vi mailcow.conf
