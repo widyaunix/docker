@@ -1,0 +1,6 @@
+services:
+  ipv6nat-mailcow:
+    profiles: ["disabled"]
+  netfilter-mailcow:
+    profiles: ["disabled"]
+
