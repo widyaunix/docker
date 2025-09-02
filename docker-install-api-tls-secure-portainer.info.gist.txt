@@ -89,3 +89,12 @@ docker run -d   -p 9443:9443   --name portainer   --restart=always   -v portaine
 #name: docker-root
 #docker api url: 172.17.0.1:2376
 #pilih tls, lalu upload file, ca.pem, cert.pem, key.pem yg telah dibuat sebelumnya (copy dulu ke laptop filenya), lalu connect
+
+###note
+#portainer password reset helper
+#https://docs.portainer.io/advanced/reset-admin
+docker stop "id-portainer-container"
+docker pull portainer/helper-reset-password
+docker run --rm -v portainer_data:/data portainer/helper-reset-password
+docker start "id-portainer-container"
+
